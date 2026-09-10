@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from .models import Movie, Review
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 
 def index(request):
     search_term = request.GET.get('search')
@@ -58,5 +59,12 @@ def edit_review(request, id, review_id):
 @login_required
 def delete_review(request, id, review_id):
     review = get_object_or_404(Review, id=review_id, user=request.user)
+    review.delete()
+    return redirect('movies.show', id=id)
+
+@login_required
+@require_POST
+def report_review(request, id, review_id):
+    review = get_object_or_404(Review, id=review_id, movie_id=id)
     review.delete()
     return redirect('movies.show', id=id)
