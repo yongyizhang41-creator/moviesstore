@@ -11,5 +11,10 @@ urlpatterns = [
         'popularity-map/',
         views.popularity_map,
         name="movies.popularity_map",
+    ),
+    path(
+        '<int:id>/rate/',
+        views.rate_movie,
+        name = 'movies.rate_movie',
     )
 ]
