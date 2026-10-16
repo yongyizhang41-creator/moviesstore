@@ -56,9 +56,9 @@ def rate_movie(request, id):
     if not form.is_valid():
         messages.error(
             request,
-            'Please select a whole0number rating from 1 to 5.',
+            'Please select a whole-number rating from 1 to 5.',
         )
-        return redirect('movies,show', id = id)
+        return redirect('movies.show', id = id)
 
     rating, created = Rating.objects.update_or_create(
         movie = movie,
