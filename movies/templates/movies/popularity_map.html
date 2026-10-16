@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<div class="container py-4">
+  <h2>Local Popularity Map</h2>
+  <p>Discover the most purchased movies in each region.</p>
+
+  {% if template_data.regions %}
+
+  <div id="popularity-map" class="mb-4" style="height:420px;"></div>
+
+    <p id="map-error" class="text-danger" hidden>
+        Map could not load. You can still select a region below.
+    </p>
+
+    {{template_data.map_regions|json_script:"map-regions-data"}}
+  <form method="get" class="mb-4">
+    <label for="region" class="form-label">Select a region</label>
+
+    <div class="d-flex gap-2">
+      <select id="region" name="region" class="form-select">
+        {% for region in template_data.regions %}
+        <option
+          value="{{ region.id }}"
+          {% if region.id == template_data.selected_region.id %}selected{% endif %}
+        >
+          {{ region.name }}
+        </option>
+        {% endfor %}
+      </select>
+
+      <button type="submit" class="btn btn-dark">View</button>
+    </div>
+  </form>
+
+  <h3>{{ template_data.selected_region.name }} — Top Movies</h3>
+  <p>Ranked by total purchased quantity.</p>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Movie</th>
+        <th>Purchased quantity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for movie in template_data.top_movies %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>
+          <a href="{% url 'movies.show' id=movie.movie_id %}">
+            {{ movie.movie__name }}
+          </a>
+        </td>
+        <td>{{ movie.purchase_count }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="3">No purchases recorded in this region yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No regions available yet.</p>
+  {% endif %}
+</div>
+
+{% if template_data.regions %}
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    const mapError = document.getElementById('map-error');
+
+    if (typeof L === 'undefined') {
+        mapError.hidden = false;
+    } else {
+        const regions = JSON.parse(
+            document.getElementById('map-regions-data').textContent
+        );
+        const selectedId = document.getElementById('region').value;
+        const map = L.map('popularity-map');
+        const viewParams = new URLSearchParams(window.location.search);
+
+        const tiles = L.tileLayer(
+          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          {
+            maxZoom:19, 
+            attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          }  
+        ).addTo(map);
+
+        tiles.on('tileerror', function(){
+            mapError.hidden = false;
+        });
+
+    
+
+        regions.forEach(function (region) {
+            const position = [region.latitude, region.longitude];
+
+            const selected = String(region.id) === selectedId;
+            const marker = L.circleMarker(position, {
+                radius: selected ? 12 : 9,
+                color: selected ? '#b45309' : '#1d4ed8',
+                fillColor: selected ? '#f59e0b' : '#3b82f6',
+                fillOpacity: 0.85,
+                weight: 2,
+            }).addTo(map)
+
+            const label = document.createElement('span')
+            label.textContent = region.name;
+            marker.bindTooltip(label, {
+                permanent: true, 
+                direction:'top',
+            });
+
+            marker.on('click', function(){
+                const center = map.getCenter();
+                const url = new URL(window.location.href);
+
+                url.searchParams.set('region', region.id);
+                url.searchParams.set('lat', center.lat);
+                url.searchParams.set('lng', center.lng);
+                url.searchParams.set('zoom', map.getZoom());
+                window.location.href = url.toString();
+            });
+        });
+        const lat = Number(viewParams.get('lat'));
+        const lng = Number(viewParams.get('lng'));
+        const zoom = Number(viewParams.get('zoom'));
+
+        const hasSavedView =
+            viewParams.has('lat') &&
+            viewParams.has('lng') &&
+            viewParams.has('zoom') &&
+            Number.isFinite(lat) &&
+            Number.isFinite(lng) &&
+            Number.isFinite(zoom) &&
+            lat >= -85 && lat <= 85 &&
+            lng >= -180 && lng <= 180 &&
+            zoom >= 0 && zoom <= 19;
+
+        if (hasSavedView) {
+            map.setView([lat, lng], zoom);
+        } else {
+            map.setView([39, -98], 4);
+        }
+    }
+</script>
+{% endif %}
+{% endblock content %}

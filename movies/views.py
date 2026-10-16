@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from .models import Movie, Review
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
+from cart.models import Region
+from .services import get_region_top_movies
 
 def index(request):
     search_term = request.GET.get('search')
@@ -17,7 +19,7 @@ def index(request):
 # Create your views here.
 
 def show(request, id):
-    movie = Movie.objects.get(id = id)
+    movie = get_object_or_404(Movie, id=id)
     reviews = Review.objects.filter(movie=movie)
     template_data = {}
     template_data['title'] = movie.name
@@ -68,3 +70,46 @@ def report_review(request, id, review_id):
     review = get_object_or_404(Review, id=review_id, movie_id=id)
     review.delete()
     return redirect('movies.show', id=id)
+
+
+@login_required(login_url='accounts.login')
+def popularity_map(request):
+    regions = list(Region.objects.order_by('name'))
+    selected_region = None
+
+    region_id = request.GET.get('region')
+    if region_id:
+        if not region_id.isdecimal():
+            return redirect('movies.popularity_map')
+        selected_region = get_object_or_404(Region, id=int(region_id))
+    elif regions:
+        selected_region = regions[0]
+
+    top_movies = (
+        get_region_top_movies(selected_region)
+        if selected_region else []
+    )
+
+    map_regions = [
+        {
+            'id': region.id,
+            'name': region.name,
+            'latitude': region.latitude,
+            'longitude': region.longitude
+        }
+        for region in regions
+    ]
+
+    template_data = {
+        'title': 'Local Popularity Map',
+        'regions': regions,
+        'selected_region':selected_region,
+        'top_movies': top_movies,
+        "map_regions": map_regions
+    }
+
+    return render (
+        request,
+        'movies/popularity_map.html',
+        {'template_data': template_data}
+    )
