@@ -1,0 +1,63 @@
+<section class="card shadow-sm my-4" aria-labelledby="movie-rating-heading">
+  <div class="card-body">
+    <h2 id="movie-rating-heading" class="h4">Movie ratings</h2>
+
+    {% for message in messages %}
+      <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %}"
+           role="status">
+        {{ message }}
+      </div>
+    {% endfor %}
+
+    {% if template_data.rating_count %}
+      <p>
+        <b>Average rating:</b>
+        {{ template_data.average_rating|floatformat:"1" }} / 5
+        <span class="text-warning" aria-hidden="true">&#9733;</span>
+        ({{ template_data.rating_count }} rating{{ template_data.rating_count|pluralize }})
+      </p >
+    {% else %}
+      <p>No ratings yet. (0 ratings)</p >
+    {% endif %}
+
+    {% if user.is_authenticated %}
+      {% if template_data.user_rating %}
+        <p>
+          <b>Your rating:</b>
+          {{ template_data.user_rating.score }} / 5
+        </p >
+      {% else %}
+        <p>You have not rated this movie yet.</p >
+      {% endif %}
+
+      <form method="post"
+            action="{% url 'movies.rate_movie' id=template_data.movie.id %}">
+        {% csrf_token %}
+        <fieldset class="mb-3">
+          <legend class="fs-6">Choose 1-5 stars</legend>
+          <div class="d-flex flex-wrap gap-2">
+            {% for option in template_data.rating_form.score %}
+              <label class="border rounded px-3 py-2 d-inline-flex align-items-center gap-2">
+                {{ option.tag }}
+                <span>
+                  {{ option.choice_label }}
+                  <span class="text-warning" aria-hidden="true">&#9733;</span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <button type="submit" class="btn bg-dark text-white">
+          {% if template_data.user_rating %}Update rating{% else %}Submit rating{% endif %}
+        </button>
+      </form>
+      <p class="text-muted small mt-2 mb-0">You can rate without writing a review.</p >
+    {% else %}
+      <p>
+        <a href=" 'accounts.login' %}">Log in</a >
+        or <a href="{% url 'accounts.signup' %}">sign up</a >
+        to rate this movie.
+      </p >
+    {% endif %}
+  </div>
+</section>
