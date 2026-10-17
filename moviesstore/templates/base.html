@@ -54,6 +54,11 @@
                 Movie Statistics
               </a>
             {% endif %}
+            {% if user.is_staff %}
+              <a class="nav-link" href="{% url 'dashboard.top_purchaser' %}">
+                Top Purchaser
+              </a>
+            {% endif %}
             <a class="nav-link"
               href="{% url 'accounts.orders' %}">Orders
             </a>
