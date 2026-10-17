@@ -1,9 +1,11 @@
+from urllib import response
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
 from .models import Movie, Review
-
+from cart.models import Item, Order
 
 class ReportReviewTests(TestCase):
     def setUp(self):
@@ -98,3 +100,149 @@ class ReportReviewTests(TestCase):
             )
         )
         self.assertFalse(Review.objects.filter(id=review.id).exists())
+
+
+class AdminStatisticsTests(TestCase):
+    def setUp(self):
+        self.url = reverse('movies.admin_statistics')
+        self.regular_user = User.objects.create_user(
+            username='regular-user', 
+            password='password',
+        )
+        self.staff_user = User.objects.create_user(
+            username='staff-user', 
+            password='password', 
+            is_staff=True,
+        )
+
+    def test_anonymous_user_redirected_to_login(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            reverse('accounts.login'),
+            response.headers['Location'],
+        )
+
+    def test_regular_user_redirected_to_login(self):
+        self.client.force_login(self.regular_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(
+            reverse('accounts.login'),
+            response.headers['Location'],
+        )
+
+    def test_staff_user_can_view_statistics_page(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            'movies/admin_statistics.html',
+        )
+
+    def test_page_shows_different_purchase_and_review_winners(self):
+        reviewed_movie = Movie.objects.create(
+            name='Review Champion',
+            price=10,
+            description='Test description',
+            image='movie_images/reviewed.jpg',
+        )
+        purchased_movie = Movie.objects.create(
+            name='Purchase Champion',
+            price=10,
+            description='Test description',
+            image='movie_images/purchased.jpg',
+        )
+
+        Review.objects.create(
+            comment='Test review',
+            movie=reviewed_movie,
+            user=self.regular_user,
+        )
+
+        order = Order.objects.create(
+            total=30,
+            user=self.regular_user,
+        )
+        Item.objects.create(
+            price=reviewed_movie.price,
+            quantity=1,
+            order=order,
+            movie=reviewed_movie,
+        )
+        Item.objects.create(
+            price=purchased_movie.price,
+            quantity=2,
+            order=order,
+            movie=purchased_movie,
+        )
+
+        self.client.force_login(self.staff_user)
+        response = self.client.get(self.url)
+
+        self.assertContains(response, 'Review Champion')
+        self.assertContains(response, 'Purchase Champion')
+        self.assertContains(response, '<strong>1</strong>', html=True)
+        self.assertContains(response, '<strong>2</strong>', html=True)
+
+    def test_same_movie_is_displayed_for_both_measurements(self):
+        movie = Movie.objects.create(
+            name='Champion Movie',
+            price=10,
+            description='Test description',
+            image='movie_images/double-winner.jpg',
+        )
+
+        Review.objects.create(
+            comment='Test review',
+            movie=movie,
+            user=self.regular_user,
+        )
+
+        order = Order.objects.create(
+            total=30,
+            user=self.regular_user,
+        )
+        Item.objects.create(
+            price=movie.price,
+            quantity=3,
+            order=order,
+            movie=movie,
+        )
+
+        self.client.force_login(self.staff_user)
+        response = self.client.get(self.url)
+
+        self.assertContains(response, 'Champion Movie', count=2)
+        self.assertContains(response, '<strong>3</strong>', html=True)
+        self.assertContains(response, '<strong>1</strong>', html=True)
+
+    def test_page_shows_message_when_there_is_no_activity(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(self.url)
+
+        self.assertContains(
+            response, 
+            'No movies have been purchased yet',
+        )
+        self.assertContains(
+            response, 
+            'No movies have been reviewed yet',
+        )
+
+    def test_navigation_link_visible_only_to_staff(self):
+        home_url = reverse('home.index')
+        self.client.force_login(self.regular_user)
+        regular_response = self.client.get(home_url)
+        self.assertNotContains(
+            regular_response, 
+            'Movie Statistics',
+        )
+        self.client.logout()
+        self.client.force_login(self.staff_user)
+        staff_response = self.client.get(home_url)
+        self.assertContains(
+            staff_response, 
+            'Movie Statistics',
+        )

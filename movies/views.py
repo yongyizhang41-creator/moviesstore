@@ -3,11 +3,15 @@ from .models import Movie, Review, Rating
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from cart.models import Region
-from .services import get_region_top_movies
+from .services import (
+    get_most_purchased_movie,
+    get_most_reviewed_movie,
+    get_region_top_movies,
+)
 from .forms import RatingForm
 from django.contrib import messages
 from django.db.models import Avg, Count
-
+from django.contrib.admin.views.decorators import staff_member_required
 
 def index(request):
     search_term = request.GET.get('search')
@@ -157,5 +161,19 @@ def popularity_map(request):
     return render (
         request,
         'movies/popularity_map.html',
+        {'template_data': template_data}
+    )
+
+@staff_member_required(login_url='accounts.login')
+def admin_statistics(request):
+    template_data = {
+        'title': 'Movie Statistics',
+        'most_purchased_movie': get_most_purchased_movie(),
+        'most_reviewed_movie': get_most_reviewed_movie(),
+    }
+
+    return render (
+        request,
+        'movies/admin_statistics.html',
         {'template_data': template_data}
     )
