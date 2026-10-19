@@ -177,3 +177,18 @@ def admin_statistics(request):
         'movies/admin_statistics.html',
         {'template_data': template_data}
     )
+
+@staff_member_required(login_url='accounts.login')
+def top_commenter(request):
+    top = (
+        Review.objects
+        .values('user__username')
+        .annotate(total=Count('id'))
+        .order_by('-total', 'user__username')
+        .first()
+    )
+
+    template_data = {}
+    template_data['title'] = 'Top Commenter'
+    template_data['top'] = top
+    return render(request, 'movies/top_commenter.html', {'template_data': template_data})

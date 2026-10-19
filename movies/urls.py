@@ -21,5 +21,10 @@ urlpatterns = [
         '<int:id>/rate/',
         views.rate_movie,
         name = 'movies.rate_movie',
-    )
+    ),
+    path(
+        'top-commenter/',
+        views.top_commenter,
+        name = 'movies.top_commenter',
+    ),
 ]
